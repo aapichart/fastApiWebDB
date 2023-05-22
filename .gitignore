@@ -1,0 +1,4 @@
+.venv
+.envrc
+.git
+__pycache__
