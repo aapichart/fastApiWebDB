@@ -1,4 +1,5 @@
 .venv
 .envrc
 .git
+.configSystem
 __pycache__

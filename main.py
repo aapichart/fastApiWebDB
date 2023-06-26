@@ -1,10 +1,14 @@
 import io
 import qrcode
+import uvicorn
 
 from PIL import Image
 from imageProcedure import getImage 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from fastapi.responses import HTMLResponse 
 from starlette.responses import StreamingResponse
+
+from dbConnect import dbBot
 
 
 app = FastAPI()
@@ -46,5 +50,25 @@ def getpic(message: str):
     img1 = getImage(message, 'waiting')
     img1.paste(img, (500,250))
     return img1
+
+@app.get("/getquery")
+async def getquery():
+    bot=dbBot()
+    result=bot.exeQuery("select * from test","")
+    html_content=f"""
+    <html>
+        <head>
+           <title> Query DB Server </title> 
+        </head>
+        <body>
+             {result} 
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
 
