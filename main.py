@@ -90,7 +90,7 @@ if __name__ == "__main__":
     import argparse
     
     parse=argparse.ArgumentParser(description=" Create Interface for Control DBServer ")
-    parse.add_argument('--createConfig', metavar=bot.configFileName, required=True, help='Generate default config file')
+    parse.add_argument('--createConfig', metavar=bot.configFileName, required=False, help='Generate default config file')
     args=parse.parse_args()
     mainCmd(createConfig=args.createConfig)
     
