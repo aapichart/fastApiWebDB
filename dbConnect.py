@@ -1,56 +1,63 @@
 import sqlalchemy as db
-from sqlalchemy import null, text, true, values
+from sqlalchemy import false, null, text, true, values
 import psycopg2
 import psycopg2.extras
 from configparser import ConfigParser
 import os
 
 class dbBot():
-   
-    hostname = ''
-    dbname = ''
-    port = ''
-    user = ''
-    password = ''
-    
-    def __init__(self):
-        # Read config file and setting   
-        parser=ConfigParser()
-        configPath=os.path.join(os.getcwd(),'.configSystem')
-        parser.read(configPath) 
-        # self.hostname= parser.get('DBServer','HOSTNAME')
-        print(self.hostname)
-        self.hostname="10.135.70.133"
-        # self.dbname=dbServer['DBNAME']
-        self.dbname="testDB"
-        # self.port=dbServer.get('PORT_NO')
-        self.port='5433'
-        # self.user=dbServer.get('USERNAME')
-        self.user="root"
-        # self.password=dbServer.get('PASSWD')
-        self.password="chartx.123"
 
-    def connectToDB(self):
+    configFileName='.configSystem' 
+    configFile=os.path.join(os.getcwd(), configFileName)
+    sectionStr='DBServer'
+
+    def __init__(self): 
+        pass
+
+    def readConfig(self, sectionStr, configFile):
+        connectionStr={}
         try:
-            with psycopg2.connect(
-                    host=self.hostname,
-                    dbname=self.dbname,
-                    user=self.user,
-                    password=self.password,
-                    port=self.port,
-                    ) as self.conn:
-                self.cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) 
+            # Read config file and setting   
+            parser=ConfigParser()
+            parser.read(configFile) 
+            if parser is not None:
+                if parser.has_section(sectionStr):
+                    for item in parser.items(sectionStr):
+                        connectionStr[item[0]]=item[1]
+                    # print(connectionStr)
+                    return connectionStr
+                else:
+                    print(f" No section {sectionStr} in config file ")
+            else:
+                print(f" No configuration file in the system!! ")
+            
         except Exception as error:
             print(error)
 
-    def buildDict(self, outputList):
+    def connectToDB(self):
+        cur=None
+        conn=None
+        connectionStr={}
+        connectionStr=self.readConfig(self.sectionStr, self.configFile)
+        if connectionStr is not None:
+            try:
+                conn = psycopg2.connect(**connectionStr) 
+                cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor) 
+                print(f" Connect to database server successfully!! ")
+            except psycopg2.OperationalError as error:
+                print(error)
+        else:
+            print(f" Config file has no database configuration!! ")
+        return cur, conn
+
+    def buildDict(self, outputList, cur):
         columnName=[] 
         dataDict={}
         # collect column name from result
-        columnName=[i[0] for i in self.cur.description] 
+        columnName=[i[0] for i in cur.description] 
         # build jason output as dictionary list in python 
         recCount=1
-        for record in self.cur.fetchall():
+        for record in cur.fetchall():
             for countInt in range(len(columnName)):
                 dataDict[columnName[countInt]]=record[countInt]
             outputList[f"{recCount}"]=dataDict
@@ -60,16 +67,21 @@ class dbBot():
         return outputList
 
     def exeQuery(self, queryStr, parameterStr):
-        try:
-            outputList={}
-            self.connectToDB()
-            self.cur.execute(queryStr, parameterStr)
-            outputList=self.buildDict(outputList)
-            return outputList
-        except Exception as error:
-            print(error)
-        finally:
-            self.cur.close()
-            self.conn.commit()
+        cur=None
+        conn=None
+        outputList={}
+        cur, conn=self.connectToDB()
+        if conn is not None:
+            try:
+                if cur is not None:
+                    cur.execute(queryStr, parameterStr)
+                    outputList=self.buildDict(outputList, cur)
+                    cur.close()
+                    return outputList
+            except Exception as error:
+                print(error)
+            finally:
+                conn.commit()
+                conn.close()
 
             
