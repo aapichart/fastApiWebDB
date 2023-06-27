@@ -56,7 +56,22 @@ def getpic(message: str):
 
 @app.get("/getquery")
 async def getquery():
-    result=bot.exeQuery("select * from test","")
+    result=bot.exeQuery("select * from test order by num","")
+    # result=bot.exeQuery("""
+                        # INSERT INTO test (num, username, surname) 
+                        # VALUES (%s,%s,%s);
+                        # """,
+                        # ('008','Test8','Test8Surname',))
+    # result=bot.exeQuery("""
+                        # UPDATE test set username=%s
+                        # WHERE (num=%s)
+                        # """,
+                        # ('Testxxx','002'))
+    # result=bot.exeQuery("""
+                        # DELETE FROM test
+                        # WHERE (num=%s)
+                        # """,
+                        # ('7',))
     html_content=f"""
     <html>
         <head>
@@ -95,5 +110,4 @@ if __name__ == "__main__":
     mainCmd(createConfig=args.createConfig)
     
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
 
