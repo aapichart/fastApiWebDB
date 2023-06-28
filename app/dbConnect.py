@@ -7,7 +7,7 @@ import os
 
 class dbBot():
 
-    configFileName='.configSystem' 
+    configFileName='app/.configSystem' 
     configFile=os.path.join(os.getcwd(), configFileName)
     sectionStr='DBServer'
 

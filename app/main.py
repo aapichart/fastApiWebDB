@@ -2,19 +2,20 @@ import io
 import os
 import configparser
 import qrcode
+from sqlalchemy import Boolean
 import uvicorn
 
 from PIL import Image
 from imageProcedure import getImage 
-from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse 
+from fastapi import FastAPI, Response, APIRouter
+from fastapi.responses import HTMLResponse, JSONResponse 
 from starlette.responses import StreamingResponse
 
 from dbConnect import dbBot
-
+from routes.accModule.route import router
+from routes.invenModule.route import router2
 
 app = FastAPI()
-bot=dbBot()
 
 @app.get('/')
 async def root():
@@ -82,32 +83,61 @@ async def getquery():
         </body>
     </html>
     """
-    return HTMLResponse(content=html_content, status_code=200)
+    # return HTMLResponse(content=html_content, status_code=200)
+    return JSONResponse(content=result)
+
+app.include_router(router)
+app.include_router(router2)
+
+bot=dbBot()
+webSectionStr='WebServer'
+configFile=bot.configFile
+sectionStr=bot.sectionStr
+webConfig=[]
+
+def readConfigWebServer():
+    try:
+        if os.path.exists(configFile):
+            config=configparser.ConfigParser()
+            config.read(configFile)
+            webConfig=config[webSectionStr]
+            return webConfig
+        else: 
+            # No config file in this zone
+            print(f" No Config File for Web Server!! ")
+    except configparser.Error as error:
+        print(error)
 
 def mainCmd(createConfig):
-    configFile=bot.configFile
-    sectionStr=bot.sectionStr
     if os.path.exists(configFile):
-        print(f" Config File already exist!! \n Can not generate default config file...")
+        print(f" Config File already exist!! ")
     else: 
         # No config file in this zone
         config=configparser.ConfigParser()
         config[sectionStr]={
                 'host':'localhost',
                 'port':'5432',
-                'dbname':'testdb',
+                'dbname':'testDB',
                 'user':'admin',
                 'password':'testdb'}
+        config[webSectionStr]={
+                'host':'0.0.0.0',
+                'port':'8000',
+                'reload':'True'}
+
         with open(configFile, 'w') as defaultConfigFile:
            config.write(defaultConfigFile)
 
 if __name__ == "__main__":
     import argparse
     
+
     parse=argparse.ArgumentParser(description=" Create Interface for Control DBServer ")
     parse.add_argument('--createConfig', metavar=bot.configFileName, required=False, help='Generate default config file')
     args=parse.parse_args()
     mainCmd(createConfig=args.createConfig)
     
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    webConfig=readConfigWebServer()
+    print(f" Config File loaded!! ")
+    uvicorn.run("main:app", host=webConfig['host'], port=int(webConfig['port']), reload=Boolean(webConfig['reload']))
 
