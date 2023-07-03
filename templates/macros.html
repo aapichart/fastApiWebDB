@@ -17,8 +17,13 @@
 {% endmacro %}
 
 {% macro data_table(heading, data) %}
+    <div>
+        <H1>
+            SanguanTAS Group...
+        </H1>    
+    </div>    
     <table class="table">
         {{ heading_row(heading) }} 
-        {{ data_row(data) }}
+        {{ data_rows(data) }}
     </table>
 {% endmacro %}

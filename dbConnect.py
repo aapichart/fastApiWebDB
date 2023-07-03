@@ -6,8 +6,8 @@ from configparser import ConfigParser
 import os
 
 class dbBot():
-
-    configFileName='app/.configSystem' 
+    
+    configFileName='.configSystem' 
     configFile=os.path.join(os.getcwd(), configFileName)
     sectionStr='DBServer'
 
@@ -50,34 +50,25 @@ class dbBot():
             print(f" Config file has no database configuration!! ")
         return cur, conn
 
-    def buildDict(self, outputList, cur):
-        columnName=[] 
-        dataDict={}
-        # collect column name from result
-        columnName=[i[0] for i in cur.description] 
-        # build jason output as dictionary list in python 
-        recCount=1
-        for record in cur.fetchall():
-            for countInt in range(len(columnName)):
-                dataDict[columnName[countInt]]=record[countInt]
-            outputList[f"{recCount}"]=dataDict
-            # clear after append for another record
-            recCount+=1
-            dataDict={}
-        return outputList
-
     def exeQuery(self, queryStr, parameterStr):
         cur=None
         conn=None
-        outputList={}
+        returnList={}
         cur, conn=self.connectToDB()
         if conn is not None:
             try:
                 if cur is not None:
                     cur.execute(queryStr, parameterStr)
-                    outputList=self.buildDict(outputList, cur)
+                    # collect column name from result
+                    columnName=[] 
+                    columnName=[i[0] for i in cur.description] 
+                    returnList['header']=columnName
+                    outputList=[]
+                    for record in cur:
+                        outputList.append(record)
+                    returnList['data']=outputList
                     cur.close()
-                    return outputList
+                    return returnList
             except Exception as error:
                 print(error)
             finally:

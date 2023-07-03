@@ -10,10 +10,15 @@ from imageProcedure import getImage
 from fastapi import FastAPI, Response, APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse 
 from starlette.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles 
 
 from dbConnect import dbBot
-from routes.accModule.route import router
-from routes.invenModule.route import router2
+from routes.accRoute import router
+from routes.invRoute import router2
+from routes.finRoute import router3
+from routes.hrMgtRoute import router4
+from routes.purRoute import router5
+from routes.systemRoute import router6
 
 app = FastAPI()
 
@@ -88,6 +93,13 @@ async def getquery():
 
 app.include_router(router)
 app.include_router(router2)
+app.include_router(router3)
+app.include_router(router4)
+app.include_router(router5)
+app.include_router(router6)
+
+# mouting path static for all images, css, and other resources
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 bot=dbBot()
 webSectionStr='WebServer'
@@ -130,7 +142,6 @@ def mainCmd(createConfig):
 
 if __name__ == "__main__":
     import argparse
-    
 
     parse=argparse.ArgumentParser(description=" Create Interface for Control DBServer ")
     parse.add_argument('--createConfig', metavar=bot.configFileName, required=False, help='Generate default config file')
