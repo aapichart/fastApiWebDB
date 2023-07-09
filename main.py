@@ -1,32 +1,47 @@
 import io
-import os
-import configparser
+from typing import Annotated
 import qrcode
 from sqlalchemy import Boolean
+from sqlalchemy.orm import Session
 import uvicorn
 
 from PIL import Image
+from controls import systemControls
 from imageProcedure import getImage 
-from fastapi import FastAPI, Response, APIRouter
-from fastapi.responses import HTMLResponse, JSONResponse 
+from fastapi import FastAPI, Depends, status
+from fastapi.responses import JSONResponse 
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
 from starlette.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles 
 
-from dbConnect import dbBot
-from routes.accRoute import router
-from routes.invRoute import router2
-from routes.finRoute import router3
-from routes.hrMgtRoute import router4
-from routes.purRoute import router5
-from routes.systemRoute import router6
+from dbConnect import dbBot, sqlalchemyBot
+from models import modelSystem
+from models.modelSystem import User 
+from routes.accRoute import routerAcc
+from routes.invRoute import routerInven
+from routes.finRoute import routerFin
+from routes.hrMgtRoute import routerHr
+from routes.purRoute import routerPur
+from routes.systemRoute import routerSystem 
+
+import utilities
+from controls import systemControls
+from dbConnect import get_db
+from oauth2 import get_current_active_user, get_current_user 
+from schemas.schemaLogin import Token
 
 app = FastAPI()
 
-@app.get('/')
-async def root():
-    return {'FastAPI server': 'I''m AlphaBOT Server.'}
+@app.get('/',tags=['Welcome'])
+async def root(current_user: Annotated[str, Depends(get_current_user)]):
+    return {'FastAPI server': 'I''m AlphaBOT Server.',
+            'current_user': current_user}
 
-@app.get('/reqqr/{message}')
+@app.post("/reqtoken", tags=['Welcome'])
+async def reqtoken(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db:Session=Depends(get_db)):
+  return systemControls.get_token(form_data, db)
+                          
+@app.get('/reqqr/{message}',tags=['Welcome'])
 def genqr(message: str):
     img = qrcode.make(message)
     buf = io.BytesIO()
@@ -34,7 +49,7 @@ def genqr(message: str):
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/jpeg")
 
-@app.get("/reqpass/{message}")
+@app.get("/reqpass/{message}",tags=['Welcome'])
 def generate(message: str):
     qr = qrcode.QRCode(box_size=2)
     qr.add_data(message)
@@ -50,7 +65,7 @@ def generate(message: str):
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/jpeg")
 
-@app.get("/getpic/{message}")
+@app.get("/getpic/{message}",tags=['Welcome'])
 def getpic(message: str):
     qr = qrcode.QRCode(box_size=2)
     qr.add_data(message)
@@ -60,7 +75,7 @@ def getpic(message: str):
     img1.paste(img, (500,250))
     return img1
 
-@app.get("/getquery")
+@app.get("/getquery",tags=['Welcome'])
 async def getquery():
     result=bot.exeQuery("select * from test order by num","")
     # result=bot.exeQuery("""
@@ -91,64 +106,41 @@ async def getquery():
     # return HTMLResponse(content=html_content, status_code=200)
     return JSONResponse(content=result)
 
-app.include_router(router)
-app.include_router(router2)
-app.include_router(router3)
-app.include_router(router4)
-app.include_router(router5)
-app.include_router(router6)
+
+
+# add more routes for each modules
+app.include_router(routerAcc)
+app.include_router(routerInven)
+app.include_router(routerFin)
+app.include_router(routerHr)
+app.include_router(routerPur)
+app.include_router(routerSystem)
 
 # mouting path static for all images, css, and other resources
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# create bot for connecting to psycopg2
 bot=dbBot()
-webSectionStr='WebServer'
-configFile=bot.configFile
-sectionStr=bot.sectionStr
+
+# crate meta schema for database model for using with sqlalchemy Bot
+alBot=sqlalchemyBot()
+alBot.openDBSession()
+# Generate all table schemas for using, if it is not exist
+if alBot.localEngine is not None:
+    modelSystem.Base.metadata.create_all(alBot.localEngine)
+
+# config Web server Parameters
 webConfig=[]
-
-def readConfigWebServer():
-    try:
-        if os.path.exists(configFile):
-            config=configparser.ConfigParser()
-            config.read(configFile)
-            webConfig=config[webSectionStr]
-            return webConfig
-        else: 
-            # No config file in this zone
-            print(f" No Config File for Web Server!! ")
-    except configparser.Error as error:
-        print(error)
-
-def mainCmd(createConfig):
-    if os.path.exists(configFile):
-        print(f" Config File already exist!! ")
-    else: 
-        # No config file in this zone
-        config=configparser.ConfigParser()
-        config[sectionStr]={
-                'host':'localhost',
-                'port':'5432',
-                'dbname':'testDB',
-                'user':'admin',
-                'password':'testdb'}
-        config[webSectionStr]={
-                'host':'0.0.0.0',
-                'port':'8000',
-                'reload':'True'}
-
-        with open(configFile, 'w') as defaultConfigFile:
-           config.write(defaultConfigFile)
 
 if __name__ == "__main__":
     import argparse
 
     parse=argparse.ArgumentParser(description=" Create Interface for Control DBServer ")
-    parse.add_argument('--createConfig', metavar=bot.configFileName, required=False, help='Generate default config file')
+    parse.add_argument('--createConfig', metavar=utilities.configFileName, required=False, help='Generate default config file')
     args=parse.parse_args()
-    mainCmd(createConfig=args.createConfig)
+    utilities.mainCmd(createConfig=args.createConfig)
     
-    webConfig=readConfigWebServer()
+    webConfig=utilities.readConfigWebServer()
     print(f" Config File loaded!! ")
     uvicorn.run("main:app", host=webConfig['host'], port=int(webConfig['port']), reload=Boolean(webConfig['reload']))
 

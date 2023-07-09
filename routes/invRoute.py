@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 
 
-router2=APIRouter(
+routerInven=APIRouter(
     tags=["invenModule"]
 )
 
-@router2.get("/invenModule/test")
+@routerInven.get("/invenModule/test")
 async def test2():
     return {"username2":"test2"}

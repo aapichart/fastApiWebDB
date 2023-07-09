@@ -1,36 +1,81 @@
-import sqlalchemy as db
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import session, sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import false, null, text, true, values
 import psycopg2
 import psycopg2.extras
 from configparser import ConfigParser
 import os
 
+import utilities
+
+#######################################################################################################
+# This bot is for sqlalchemy Package
+class sqlalchemyBot():
+
+    # define object in class for database calling
+    connectionStrUrl=''
+    localEngine=None
+    localSession=None
+
+    def __init__(self):
+        pass
+   
+    def genDataBaseUrl(self):
+        connectionStr={}
+        connectionStrUrl=''
+        try:
+            connectionStr=utilities.readConfigDBServer()
+            self.connectionStrUrl="postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}".format(**connectionStr)
+            print(connectionStrUrl)
+        except Exception as error:
+            print(error)
+
+    def getConnectionStr(self):
+        return self.connectionStrUrl;
+
+    def openDBSession(self):
+        # self.genDataBaseUrl(self.sectionStr, self.configFile)
+        self.genDataBaseUrl()
+        if self.connectionStrUrl is not None:
+            try:
+                self.localEngine=create_engine(self.connectionStrUrl)
+                self.localSession=sessionmaker(bind=self.localEngine, autocommit=False, autoflush=False) 
+                return self.localSession
+            except SQLAlchemyError as error:
+                print(error)
+
+#######################################################################################################
+# This function is used to calling object and bind engine to session for execute database as sqlalchemy
+# sqlalchemy session.execute do not use SQL Language 
+# if you want to use SQL, please use dbBot - or psycopg2 instead
+#######################################################################################################
+Base=declarative_base()
+def get_db():
+    alBot=sqlalchemyBot()
+    localSession=alBot.openDBSession()
+    if localSession is not None:
+        db=localSession()
+        try:
+            yield db 
+        finally:
+            db.close()
+#######################################################################################################
+
+
+#######################################################################################################
+# This bot is for psycopg2 Package
 class dbBot():
     
-    configFileName='.configSystem' 
-    configFile=os.path.join(os.getcwd(), configFileName)
-    sectionStr='DBServer'
-
     def __init__(self): 
         pass
 
-    def readConfig(self, sectionStr, configFile):
+    def readConfig(self):
         connectionStr={}
         try:
-            # Read config file and setting   
-            parser=ConfigParser()
-            parser.read(configFile) 
-            if parser is not None:
-                if parser.has_section(sectionStr):
-                    for item in parser.items(sectionStr):
-                        connectionStr[item[0]]=item[1]
-                    # print(connectionStr)
-                    return connectionStr
-                else:
-                    print(f" No section {sectionStr} in config file ")
-            else:
-                print(f" No configuration file in the system!! ")
-            
+            connectionStr=utilities.readConfigDBServer()
+            return connectionStr
         except Exception as error:
             print(error)
 
@@ -38,7 +83,8 @@ class dbBot():
         cur=None
         conn=None
         connectionStr={}
-        connectionStr=self.readConfig(self.sectionStr, self.configFile)
+        # connectionStr=self.readConfig(self.sectionStr, self.configFile)
+        connectionStr=self.readConfig()
         if connectionStr is not None:
             try:
                 conn = psycopg2.connect(**connectionStr) 
